@@ -3,6 +3,7 @@ package dbclient;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.logging.Logger;
 
@@ -25,6 +26,7 @@ public class JDBClient {
             Class.forName(DATABASE_DRIVER).newInstance();
             connection = DriverManager.getConnection(CONNECTION_URL, username, password);
             connection.setAutoCommit(true);
+            log.info("Connection to database " + CONNECTION_URL + " established.");
         } catch (ClassNotFoundException x) {
             log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
             return false;
@@ -42,6 +44,7 @@ public class JDBClient {
     public boolean closeConnectionToDatabase() {
         try {
             connection.close();
+            log.info("Connection to database " + CONNECTION_URL + " closed.");
         } catch (SQLException x) {
             log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
             return false;
@@ -53,7 +56,7 @@ public class JDBClient {
         return true;
     }
 
-    public void createTables() {
+    private void createTables() {
         try {
             String sqlCreateTableStudent = "CREATE TABLE student ( "
                     + "pkey INTEGER NOT NULL PRIMARY KEY, "
@@ -101,7 +104,7 @@ public class JDBClient {
         log.info(sqlCreateTable.substring(0, sqlCreateTable.indexOf('(')));
     }
 
-    public void clean() {
+    private void dropTables() {
         try {
             dropTable("enrollment");
             dropTable("class");
@@ -122,7 +125,7 @@ public class JDBClient {
         log.info(sqlDropTable);
     }
 
-    public void insertIntoTablesDataset() {
+    private void insertIntoTablesDataset() {
         try {
             insertIntoTableStudent(1, "John Smith", "male", 23, 2);
             insertIntoTableStudent(2, "Rebecca Milson", "female", 27, 3);
@@ -205,17 +208,170 @@ public class JDBClient {
         log.info(sqlInsertIntoValues.substring(0, sqlInsertIntoValues.indexOf('(')) + " ( " + values + " );");
     }
 
+    private void findKeysAndNamesOfPersonsRegisteredAsStudents() {
+        try {
+            String sqlSelect = "SELECT pkey, name "
+                    + "FROM student";
+            PreparedStatement statement = connection.prepareStatement(sqlSelect);
+            statement.execute();
+            ResultSet response = statement.getResultSet();
+            log.info(sqlSelect);
+
+            while (response.next()) {
+                int pkey = response.getInt("pkey");
+                String name = response.getString("name");
+                System.out.println("pkey=" + pkey + ", name=" + name);
+            }
+
+            statement.close();
+        } catch (SQLException x) {
+            log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+        } catch (Exception x) {
+            log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+        }
+    }
+
+    private void findKeysAndNamesOfPersonsNotEnrolledToAnyClasses() {
+        try {
+            String sqlSelect = "SELECT * FROM student s "
+                    + "WHERE s.pkey NOT IN ( "
+                    + "SELECT DISTINCT fkey_student FROM enrollment "
+                    + ")";
+            PreparedStatement statement = connection.prepareStatement(sqlSelect);
+            statement.execute();
+            ResultSet response = statement.getResultSet();
+            log.info(sqlSelect);
+
+            while (response.next()) {
+                int pkey = response.getInt("pkey");
+                String name = response.getString("name");
+                System.out.println("pkey=" + pkey + ", name=" + name);
+            }
+
+            statement.close();
+        } catch (SQLException x) {
+            log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+        } catch (Exception x) {
+            log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+        }
+    }
+
+    private void findKeysAndNamesOfFemalesLearningAboutExistentialismIn20thCentury() {
+        try {
+            String sqlSelect = "SELECT DISTINCT pkey, name "
+                    + "FROM student s "
+                    + "JOIN enrollment e ON e.fkey_student = s.pkey "
+                    + "WHERE s.sex = 'female' AND e.fkey_class = ( "
+                    + "SELECT pkey "
+                    + "FROM class "
+                    + "WHERE name = 'Existentialism in 20th century' "
+                    + ") ";
+            PreparedStatement statement = connection.prepareStatement(sqlSelect);
+            statement.execute();
+            ResultSet response = statement.getResultSet();
+            log.info(sqlSelect);
+
+            while (response.next()) {
+                int pkey = response.getInt("pkey");
+                String name = response.getString("name");
+                System.out.println("pkey=" + pkey + ", name=" + name);
+            }
+
+            statement.close();
+        } catch (SQLException x) {
+            log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+        } catch (Exception x) {
+            log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+        }
+    }
+
+    private void findAllFacultyNamesWhoseClassesNoOneRegisteredTo() {
+        try {
+            String sqlSelect = "SELECT f.name "
+                    + "FROM faculty f "
+                    + "JOIN class c ON c.fkey_faculty = f.pkey "
+                    + "WHERE c.pkey NOT IN ( "
+                    + "SELECT fkey_class "
+                    + "FROM enrollment "
+                    + ")";
+            PreparedStatement statement = connection.prepareStatement(sqlSelect);
+            statement.execute();
+            ResultSet response = statement.getResultSet();
+            log.info(sqlSelect);
+
+            while (response.next()) {
+                String name = response.getString("name");
+                System.out.println("name=" + name);
+            }
+
+            statement.close();
+        } catch (SQLException x) {
+            log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+        } catch (Exception x) {
+            log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+        }
+    }
+
+    private void findAgeOfTheEldestPersonThatIsLearningAboutLabourLaw() {
+        try {
+            String sqlSelect = "SELECT MAX( s.age ) AS max_age "
+                    + "FROM student s "
+                    + "WHERE s.pkey IN ( "
+                    + "SELECT e.fkey_student "
+                    + "FROM enrollment e "
+                    + "WHERE e.fkey_class IN ( "
+                    + "SELECT c.pkey "
+                    + "FROM class c "
+                    + "WHERE c.name = 'Introduction to labour law' "
+                    + ")"
+                    + ")";
+            PreparedStatement statement = connection.prepareStatement(sqlSelect);
+            statement.execute();
+            ResultSet response = statement.getResultSet();
+            log.info(sqlSelect);
+
+            while (response.next()) {
+                int age = response.getInt("max_age");
+                System.out.println("max_age=" + age);
+            }
+
+            statement.close();
+        } catch (SQLException x) {
+            log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+        } catch (Exception x) {
+            log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+        }
+    }
+
     public static void main(String[] args) {
         JDBClient dbclient = new JDBClient("SA", "");
+        final long SLEEP_TIME = 250;
 
         if (dbclient.connectToDatabase()) {
-            log.info("Connected to database successfully.");
-            dbclient.createTables();
-            dbclient.insertIntoTablesDataset();
-            dbclient.clean();
-            dbclient.closeConnectionToDatabase();
-        } else {
-            log.warning("Connection to database failed.");
+            try {
+                dbclient.createTables();
+                Thread.sleep(SLEEP_TIME);
+                dbclient.insertIntoTablesDataset();
+                Thread.sleep(SLEEP_TIME);
+                dbclient.findKeysAndNamesOfPersonsRegisteredAsStudents();
+                Thread.sleep(SLEEP_TIME);
+                dbclient.findKeysAndNamesOfPersonsNotEnrolledToAnyClasses();
+                Thread.sleep(SLEEP_TIME);
+                dbclient.findKeysAndNamesOfFemalesLearningAboutExistentialismIn20thCentury();
+                Thread.sleep(SLEEP_TIME);
+                dbclient.findAllFacultyNamesWhoseClassesNoOneRegisteredTo();
+                Thread.sleep(SLEEP_TIME);
+                dbclient.findAgeOfTheEldestPersonThatIsLearningAboutLabourLaw();
+                Thread.sleep(SLEEP_TIME);
+                dbclient.dropTables();
+                Thread.sleep(SLEEP_TIME);
+                dbclient.closeConnectionToDatabase();
+                Thread.sleep(SLEEP_TIME);
+            } catch (InterruptedException x) {
+                log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+            } catch (Exception x) {
+                log.warning("[" + x.getClass().getName() + "] " + x.getMessage());
+            }
         }
 
     }
